@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { Agent, AgentSessionEvent, Issue, IssueComment, PluginContext, PluginEvent, PluginLocalFolderEntry, Project, ToolResult } from "@paperclipai/plugin-sdk";
+import type { Agent, AgentSessionEvent, Issue, IssueComment, PluginContext, PluginEvent, PluginLocalFolderEntry, Project, ToolResult, ToolRunContext } from "@paperclipai/plugin-sdk";
 import type { IssueDocument, PluginIssueOriginKind, PluginManagedRoutineResolution, PluginManagedSkillResolution } from "@paperclipai/plugin-sdk/types";
 import {
   DEFAULT_MAX_SOURCE_BYTES,
@@ -21,6 +21,7 @@ import {
   REQUIRED_WIKI_DIRECTORIES,
   REQUIRED_WIKI_FILES,
 } from "../templates.js";
+import { resolveToolCompanyId } from "../access.js";
 
 export const DEFAULT_WIKI_ID = "default";
 export const DEFAULT_SPACE_SLUG = "default";
@@ -4061,9 +4062,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Search Wiki",
     description: "Search indexed wiki page and source metadata.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_search")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const query = requireString(input.query, "query");
@@ -4090,9 +4091,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Read Wiki Page",
     description: "Read a markdown wiki page from the configured local wiki root.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_read_page")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const path = assertPagePath(requireString(input.path, "path"));
@@ -4104,10 +4105,10 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Write Wiki Page",
     description: "Atomically write a markdown wiki page after plugin path validation.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_write_page")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
     const result = await writeWikiPage(ctx, {
-      companyId: requireString(input.companyId, "companyId"),
+      companyId: resolveToolCompanyId(input, runCtx),
       wikiId: stringField(input.wikiId),
       spaceSlug: stringField(input.spaceSlug),
       path: requireString(input.path, "path"),
@@ -4123,9 +4124,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Propose Wiki Patch",
     description: "Return a structured proposed page write without changing files.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_propose_patch")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const path = assertPagePath(requireString(input.path, "path"));
@@ -4150,9 +4151,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "List Wiki Sources",
     description: "Return captured raw source metadata from the plugin index.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_list_sources")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const limit = normalizeLimit(input.limit, 50, 200);
@@ -4174,9 +4175,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Read Wiki Source",
     description: "Read a captured raw source from the configured local wiki root.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_read_source")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const rawPath = assertRawPath(requireString(input.rawPath, "rawPath"));
@@ -4188,9 +4189,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Append Wiki Log",
     description: "Append a maintenance note to wiki/log.md.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_append_log")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const entry = requireString(input.entry, "entry");
@@ -4217,10 +4218,10 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "Update Wiki Index",
     description: "Atomically replace wiki/index.md with optional hash conflict checks.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_update_index")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
     const result = await writeWikiPage(ctx, {
-      companyId: requireString(input.companyId, "companyId"),
+      companyId: resolveToolCompanyId(input, runCtx),
       wikiId: stringField(input.wikiId),
       spaceSlug: stringField(input.spaceSlug),
       path: "wiki/index.md",
@@ -4235,9 +4236,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "List Wiki Backlinks",
     description: "Return indexed backlinks for a wiki page.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_list_backlinks")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const path = assertPagePath(requireString(input.path, "path"));
@@ -4259,9 +4260,9 @@ export async function registerWikiTools(ctx: PluginContext) {
     displayName: "List Wiki Pages",
     description: "Return the known page index from plugin metadata.",
     parametersSchema: ctx.manifest.tools?.find((tool) => tool.name === "wiki_list_pages")?.parametersSchema ?? { type: "object" },
-  }, async (params: unknown): Promise<ToolResult> => {
+  }, async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
     const input = params as ToolParams;
-    const companyId = requireString(input.companyId, "companyId");
+    const companyId = resolveToolCompanyId(input, runCtx);
     const wikiId = normalizeWikiId(input.wikiId);
     const space = await resolveSpace(ctx, { companyId, wikiId, spaceSlug: input.spaceSlug as string | null | undefined });
     const rows = await ctx.db.query<{ path: string; title: string | null; page_type: string | null }>(

@@ -22,6 +22,8 @@ The alpha surface includes:
 - Paperclip-derived distillation maintains `wiki/projects/<slug>/standup.md` as the executive current-state view for each represented project, alongside durable `wiki/projects/<slug>/index.md` knowledge pages
 - wiki page writes with plugin path validation, atomic local-folder writes, metadata/revision rows, backlink extraction, and optional stale-hash protection
 - wiki tools for search/read/write/propose patch/source/log/index/backlinks workflows
+- worker actions accept board users only and refuse agent callers; the company in the params must match the company the host authorized
+- wiki tools take the company from the calling run context; a `companyId` parameter is optional and must match it
 
 ## Phase 5 Security Gate
 

@@ -6,6 +6,7 @@ import {
   type PluginManagedRoutineDeclaration,
   type PluginManagedRoutineResolution,
 } from "@paperclipai/plugin-sdk";
+import { registerBoardAction } from "./access.js";
 import {
   PAPERCLIP_DISTILL_SKILL_KEY,
   WIKI_MAINTENANCE_ROUTINE_KEYS,
@@ -215,7 +216,7 @@ const plugin = definePlugin({
         : { status: "ok", checkedAt: new Date().toISOString(), message: "LLM Wiki worker is running" };
     });
 
-    ctx.actions.register("bootstrap-root", async (params) => {
+    registerBoardAction(ctx, "bootstrap-root", async (params) => {
       return bootstrapWikiRoot(ctx, {
         companyId: readCompanyIdFromParams(params),
         path: stringField(params.path),
@@ -237,7 +238,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("create-space", async (params) => {
+    registerBoardAction(ctx, "create-space", async (params) => {
       return createSpace(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -249,7 +250,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("update-space", async (params) => {
+    registerBoardAction(ctx, "update-space", async (params) => {
       return updateSpace(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -260,7 +261,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("bootstrap-space", async (params) => {
+    registerBoardAction(ctx, "bootstrap-space", async (params) => {
       return bootstrapSpace(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -268,7 +269,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("archive-space", async (params) => {
+    registerBoardAction(ctx, "archive-space", async (params) => {
       return archiveSpace(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -276,7 +277,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("create-operation", async (params) => {
+    registerBoardAction(ctx, "create-operation", async (params) => {
       const operationType = stringField(params.operationType);
       if (
         operationType !== "ingest" &&
@@ -299,7 +300,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("capture-source", async (params) => {
+    registerBoardAction(ctx, "capture-source", async (params) => {
       return captureWikiSource(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -313,7 +314,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("write-page", async (params) => {
+    registerBoardAction(ctx, "write-page", async (params) => {
       return writeWikiPage(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -327,7 +328,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("write-template", async (params) => {
+    registerBoardAction(ctx, "write-template", async (params) => {
       return writeTemplate(ctx, {
         companyId: readCompanyIdFromParams(params),
         path: stringField(params.path) ?? "",
@@ -335,7 +336,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("update-event-ingestion-settings", async (params) => {
+    registerBoardAction(ctx, "update-event-ingestion-settings", async (params) => {
       const requestedSources = typeof params.sources === "object" && params.sources != null && !Array.isArray(params.sources)
         ? params.sources as Record<string, unknown>
         : null;
@@ -387,7 +388,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("update-paperclip-ingestion-profile", async (params) => {
+    registerBoardAction(ctx, "update-paperclip-ingestion-profile", async (params) => {
       return updatePaperclipIngestionProfile(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -396,7 +397,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("queue-paperclip-ingestion-backfill", async (params) => {
+    registerBoardAction(ctx, "queue-paperclip-ingestion-backfill", async (params) => {
       const companyId = readCompanyIdFromParams(params);
       const sourceScope = typeof params.sourceScope === "object" && params.sourceScope != null && !Array.isArray(params.sourceScope)
         ? params.sourceScope as Record<string, unknown>
@@ -474,7 +475,7 @@ const plugin = definePlugin({
       };
     });
 
-    ctx.actions.register("ingest-source", async (params) => {
+    registerBoardAction(ctx, "ingest-source", async (params) => {
       const companyId = readCompanyIdFromParams(params);
       const wikiId = stringField(params.wikiId);
       const spaceSlug = stringField(params.spaceSlug);
@@ -508,7 +509,7 @@ const plugin = definePlugin({
       return { status: "ok", source: captured, operation: op };
     });
 
-    ctx.actions.register("assemble-paperclip-source-bundle", async (params) => {
+    registerBoardAction(ctx, "assemble-paperclip-source-bundle", async (params) => {
       return assemblePaperclipSourceBundle(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -525,7 +526,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("create-paperclip-distillation-run", async (params) => {
+    registerBoardAction(ctx, "create-paperclip-distillation-run", async (params) => {
       return createPaperclipDistillationRun(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -544,7 +545,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("record-paperclip-distillation-outcome", async (params) => {
+    registerBoardAction(ctx, "record-paperclip-distillation-outcome", async (params) => {
       const status = stringField(params.status);
       if (status !== "succeeded" && status !== "failed" && status !== "review_required") {
         throw new Error("status must be succeeded, failed, or review_required");
@@ -566,7 +567,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("distill-paperclip-project-page", async (params) => {
+    registerBoardAction(ctx, "distill-paperclip-project-page", async (params) => {
       return distillPaperclipProjectPage(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -588,7 +589,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("distill-paperclip-now", async (params) => {
+    registerBoardAction(ctx, "distill-paperclip-now", async (params) => {
       const companyId = readCompanyIdFromParams(params);
       const spaceSlug = stringField(params.spaceSlug);
       const projectId = stringField(params.projectId);
@@ -621,7 +622,7 @@ const plugin = definePlugin({
       return { status: "queued", workItem, operation };
     });
 
-    ctx.actions.register("enable-paperclip-distillation-active-projects", async (params) => {
+    registerBoardAction(ctx, "enable-paperclip-distillation-active-projects", async (params) => {
       return enableActiveProjectDistillation(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -630,7 +631,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("backfill-paperclip-distillation", async (params) => {
+    registerBoardAction(ctx, "backfill-paperclip-distillation", async (params) => {
       const companyId = readCompanyIdFromParams(params);
       const spaceSlug = stringField(params.spaceSlug);
       const projectId = stringField(params.projectId);
@@ -688,7 +689,7 @@ const plugin = definePlugin({
       return { ...result, workItem, operation };
     });
 
-    ctx.actions.register("create-paperclip-distillation-work-item", async (params) => {
+    registerBoardAction(ctx, "create-paperclip-distillation-work-item", async (params) => {
       const kind = stringField(params.kind);
       if (
         kind !== "manual" &&
@@ -717,7 +718,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("file-as-page", async (params) => {
+    registerBoardAction(ctx, "file-as-page", async (params) => {
       return fileQueryAnswerAsPage(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -732,7 +733,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("start-query", async (params) => {
+    registerBoardAction(ctx, "start-query", async (params) => {
       return startWikiQuerySession(ctx, {
         companyId: readCompanyIdFromParams(params),
         wikiId: stringField(params.wikiId),
@@ -742,31 +743,31 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("reset-managed-agent", async (params) => {
+    registerBoardAction(ctx, "reset-managed-agent", async (params) => {
       return resetWikiAgentResource(ctx, readCompanyIdFromParams(params));
     });
 
-    ctx.actions.register("reset-managed-project", async (params) => {
+    registerBoardAction(ctx, "reset-managed-project", async (params) => {
       return resetWikiProjectResource(ctx, readCompanyIdFromParams(params));
     });
 
-    ctx.actions.register("reconcile-managed-agent", async (params) => {
+    registerBoardAction(ctx, "reconcile-managed-agent", async (params) => {
       return reconcileWikiAgentResource(ctx, readCompanyIdFromParams(params));
     });
 
-    ctx.actions.register("reconcile-managed-project", async (params) => {
+    registerBoardAction(ctx, "reconcile-managed-project", async (params) => {
       return reconcileWikiProjectResource(ctx, readCompanyIdFromParams(params));
     });
 
-    ctx.actions.register("reconcile-managed-skills", async (params) => {
+    registerBoardAction(ctx, "reconcile-managed-skills", async (params) => {
       return { managedSkills: await reconcileWikiSkillResources(ctx, readCompanyIdFromParams(params)) };
     });
 
-    ctx.actions.register("reset-managed-skills", async (params) => {
+    registerBoardAction(ctx, "reset-managed-skills", async (params) => {
       return { managedSkills: await resetWikiSkillResources(ctx, readCompanyIdFromParams(params)) };
     });
 
-    ctx.actions.register("select-managed-agent", async (params) => {
+    registerBoardAction(ctx, "select-managed-agent", async (params) => {
       const agentId = stringField(params.agentId);
       if (!agentId) throw new Error("agentId is required");
       return selectWikiAgentResource(ctx, {
@@ -775,7 +776,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("select-managed-project", async (params) => {
+    registerBoardAction(ctx, "select-managed-project", async (params) => {
       const projectId = stringField(params.projectId);
       if (!projectId) throw new Error("projectId is required");
       return selectWikiProjectResource(ctx, {
@@ -784,7 +785,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("reset-managed-routine", async (params) => {
+    registerBoardAction(ctx, "reset-managed-routine", async (params) => {
       return ctx.routines.managed.reset(
         routineKeyField(params.routineKey),
         readCompanyIdFromParams(params),
@@ -792,7 +793,7 @@ const plugin = definePlugin({
       );
     });
 
-    ctx.actions.register("reconcile-managed-routine", async (params) => {
+    registerBoardAction(ctx, "reconcile-managed-routine", async (params) => {
       return ctx.routines.managed.reconcile(
         routineKeyField(params.routineKey),
         readCompanyIdFromParams(params),
@@ -800,11 +801,11 @@ const plugin = definePlugin({
       );
     });
 
-    ctx.actions.register("reconcile-managed-routines", async (params) => {
+    registerBoardAction(ctx, "reconcile-managed-routines", async (params) => {
       return reconcileWikiRoutineResources(ctx, readCompanyIdFromParams(params));
     });
 
-    ctx.actions.register("update-managed-routine-status", async (params) => {
+    registerBoardAction(ctx, "update-managed-routine-status", async (params) => {
       const status = stringField(params.status);
       if (!status) throw new Error("status is required");
       return ctx.routines.managed.update(routineKeyField(params.routineKey), readCompanyIdFromParams(params), {
@@ -812,7 +813,7 @@ const plugin = definePlugin({
       });
     });
 
-    ctx.actions.register("run-managed-routine", async (params) => {
+    registerBoardAction(ctx, "run-managed-routine", async (params) => {
       return ctx.routines.managed.run(
         routineKeyField(params.routineKey),
         readCompanyIdFromParams(params),

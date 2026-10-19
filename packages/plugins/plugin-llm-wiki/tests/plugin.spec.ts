@@ -46,6 +46,16 @@ const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.me
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
 };
+function createBoardHarness(...args: Parameters<typeof createTestHarness>) {
+  const harness = createTestHarness(...args);
+  const performAction = harness.performAction.bind(harness);
+  harness.performAction = ((key, params, options) =>
+    performAction(key, params, {
+      ...options,
+      actor: { type: "user", userId: "board-user-1", ...options?.actor },
+    })) as typeof harness.performAction;
+  return harness;
+}
 const DEFAULT_MANAGED_SKILL = {
   status: "resolved",
   skillId: "skill-1",
@@ -1383,7 +1393,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("reconciles managed maintenance routines through stable agent and project refs", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const writes = captureWikiWrites(harness);
 
     await plugin.definition.setup(harness.ctx);
@@ -1428,7 +1438,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("requires an explicit managed routine key for single-routine actions", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     await expect(harness.performAction("reconcile-managed-routine", {
@@ -1437,7 +1447,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("repairs all managed maintenance routines through one action", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
     await harness.performAction("bootstrap-root", { companyId: COMPANY_ID, path: "/tmp/company-wiki" });
 
@@ -1457,7 +1467,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("installs and resets managed company skills through setup actions", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     const before = await harness.getData<{ managedSkills: WikiSkillResource[] }>("settings", {
@@ -1503,7 +1513,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("registers worker data, actions, and tools", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     const overview = await harness.getData<{ status: string; operationCount: number; eventIngestion: { enabled: boolean } }>("overview", {
@@ -1514,14 +1524,13 @@ Duplicate headings receive stable suffixes.
     expect(overview.eventIngestion.enabled).toBe(false);
 
     const pages = await harness.executeTool<{ content?: string }>("wiki_list_pages", {
-      companyId: COMPANY_ID,
       wikiId: "default",
-    });
+    }, { companyId: COMPANY_ID });
     expect(pages.content).toBe("No pages indexed yet.");
   });
 
   it("filters stale page and raw source rows out of browse data", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const files = new Map<string, string>([
       ["wiki/concepts/live.md", "# Live Page\n"],
       ["raw/live-source.md", "# Live Source\n"],
@@ -1594,7 +1603,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("includes local wiki files in browse data before metadata is indexed", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const modifiedAt = new Date().toISOString();
     harness.ctx.localFolders.list = async (_companyId, folderKey, options) => ({
       folderKey,
@@ -1636,7 +1645,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("does not ingest Paperclip events until operator controls enable them", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const issue = paperclipIssue();
     harness.seed({ issues: [issue] });
     const writes = captureWikiWrites(harness);
@@ -1655,7 +1664,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("records enabled Paperclip issue events as cursor observations without creating ingest operations", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const issue = paperclipIssue();
     harness.seed({ issues: [issue] });
     const writes = captureWikiWrites(harness);
@@ -1697,7 +1706,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("preserves Paperclip event ingestion sources when only enabled changes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
 
     await plugin.definition.setup(harness.ctx);
     await harness.performAction("update-event-ingestion-settings", {
@@ -1732,7 +1741,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("keeps Paperclip event cursor observations company scoped and ignores plugin-operation issues", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const visibleIssue = paperclipIssue({ projectId: "77777777-7777-4777-8777-777777777777" });
     const otherCompanyIssue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777778",
@@ -1783,7 +1792,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("routes Paperclip issue, comment, and document event cursors only to the default space", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const issue = paperclipIssue({ projectId: "77777777-7777-4777-8777-777777777777" });
     harness.seed({ issues: [issue] });
 
@@ -1829,7 +1838,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("routes Paperclip events into an explicitly enabled shared non-default space", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({ projectId: project.id });
     harness.seed({ projects: [project], issues: [issue] });
@@ -1870,7 +1879,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("stops new non-default observations after the per-space profile is disabled", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({ projectId: project.id });
     harness.seed({ projects: [project], issues: [issue] });
@@ -1923,7 +1932,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("assembles deterministic Paperclip source bundles with issue, document, and comment provenance", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const root = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777781",
       identifier: "PAP-4000",
@@ -1997,7 +2006,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("suppresses secret-like comment and document bodies before storing distillation snapshots", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777784",
       identifier: "PAP-4002",
@@ -2067,7 +2076,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("creates source snapshots and only advances cursors after successful distillation outcomes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const issue = paperclipIssue({
       projectId: "77777777-7777-4777-8777-777777777777",
       updatedAt: new Date("2026-05-02T10:00:00Z"),
@@ -2123,7 +2132,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("uses the existing distillation cursor id after an upsert conflict", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777800",
@@ -2155,7 +2164,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("creates explicit distillation work items for manual, retry, and backfill lanes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     await harness.performAction("create-paperclip-distillation-work-item", {
@@ -2195,7 +2204,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("records estimated Paperclip distillation cost without refusing on legacy cost config", async () => {
-    const harness = createTestHarness({
+    const harness = createBoardHarness({
       manifest,
       config: {
         maxPaperclipRoutineRunCostCents: 1,
@@ -2244,7 +2253,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("queues visible manual distill operation issues for a company-wide stale cursor scan", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777796",
@@ -2293,7 +2302,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("enables distillation cursors for the most recently active non-plugin projects", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const recentProject = {
       ...existingProject(),
       id: "77777777-7777-4777-8777-777777777801",
@@ -2364,7 +2373,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("backfills only the selected Paperclip project and date window", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const inWindow = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777797",
@@ -2423,7 +2432,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("generates review-required Paperclip project page patches with provenance, index, and log updates", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777791",
@@ -2489,7 +2498,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("keeps suppressed secret-like source content out of generated wiki patches", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777796",
@@ -2560,7 +2569,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("auto-applies Paperclip project page patches by default when policy allows and records page bindings", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777792",
@@ -2626,7 +2635,7 @@ Duplicate headings receive stable suffixes.
   it("refuses auto-apply Paperclip project page patches in authenticated/public deployments", async () => {
     process.env.PAPERCLIP_DEPLOYMENT_MODE = "authenticated";
     process.env.PAPERCLIP_DEPLOYMENT_EXPOSURE = "public";
-    const harness = createTestHarness({ manifest, config: { autoApplyIngestPatches: true } });
+    const harness = createBoardHarness({ manifest, config: { autoApplyIngestPatches: true } });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-77777777779a",
@@ -2676,7 +2685,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("refuses stale project page hashes before writing generated Paperclip pages", async () => {
-    const harness = createTestHarness({ manifest, config: { autoApplyIngestPatches: true } });
+    const harness = createBoardHarness({ manifest, config: { autoApplyIngestPatches: true } });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777793",
@@ -2716,7 +2725,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("skips low-signal Paperclip source windows without proposing wiki writes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-777777777794",
@@ -2747,7 +2756,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("bootstraps required local wiki files through the local folder API", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const writes = captureWikiWrites(harness);
 
     await plugin.definition.setup(harness.ctx);
@@ -2782,7 +2791,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("creates a managed space with an immediately readable baseline skeleton", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const files = new Map<string, string>();
     harness.ctx.localFolders.readText = async (_companyId, _folderKey, relativePath) => {
       const value = files.get(relativePath);
@@ -2819,7 +2828,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("prevents the default space from being archived through update-space", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     await expect(harness.performAction("update-space", {
@@ -2837,7 +2846,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("archives a non-default space through update-space without re-resolving it as active", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const spaceRow = wikiSpaceRow({
       id: "77777777-7777-4777-8777-7777777777b1",
       slug: "qa-space",
@@ -2884,7 +2893,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("restores an archived non-default space through update-space", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const spaceRow = wikiSpaceRow({
       id: "77777777-7777-4777-8777-7777777777b2",
       slug: "qa-space",
@@ -2930,7 +2939,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("rejects unknown space statuses through update-space", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     await expect(harness.performAction("update-space", {
@@ -2945,7 +2954,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("omits archived spaces from the spaces data API", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const activeRow = wikiSpaceRow({
       id: "77777777-7777-4777-8777-7777777777a1",
       slug: "team-research",
@@ -2984,7 +2993,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("captures raw sources into local files and plugin metadata", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const writes = captureWikiWrites(harness);
 
     await plugin.definition.setup(harness.ctx);
@@ -3002,7 +3011,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("preserves manual source ingest for non-default spaces while refusing Paperclip distillation there", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const writes = captureWikiWrites(harness);
     harness.seed({
       agents: [wikiMaintainerAgent()],
@@ -3044,7 +3053,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("fails closed for direct Paperclip ingestion actions against restricted spaces", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({
       agents: [wikiMaintainerAgent()],
       projects: [existingProject()],
@@ -3101,7 +3110,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("re-checks Paperclip ingestion policy at execution time for queued work", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const project = existingProject();
     const issue = paperclipIssue({
       id: "77777777-7777-4777-8777-7777777777b0",
@@ -3156,7 +3165,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("queues Paperclip ingestion backfills for every selected project scope", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     await plugin.definition.setup(harness.ctx);
 
     const queued = await harness.performAction<{
@@ -3189,7 +3198,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("rejects oversized Paperclip ingestion profile and source-scope payloads", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
 
     await plugin.definition.setup(harness.ctx);
     await expect(harness.performAction("update-event-ingestion-settings", {
@@ -3218,7 +3227,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("keeps default-space files at the root and isolates managed spaces under slug prefixes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const files = new Map<string, string>();
     const writes: Array<{ path: string; contents: string }> = [];
     harness.ctx.localFolders.readText = async (_companyId, _folderKey, relativePath) => {
@@ -3301,7 +3310,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("ingests source metadata and creates a hidden plugin-operation issue", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     const writes = captureWikiWrites(harness);
 
@@ -3355,7 +3364,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("rejects oversized source capture before raw writes or operation creation", async () => {
-    const harness = createTestHarness({ manifest, config: { maxSourceBytes: 16 } });
+    const harness = createBoardHarness({ manifest, config: { maxSourceBytes: 16 } });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     const writes = captureWikiWrites(harness);
 
@@ -3379,7 +3388,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("writes pages atomically, records metadata, and rejects stale hashes", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const files = new Map<string, string>([
       ["wiki/concepts/plugin-boundaries.md", "# Old Title\n"],
     ]);
@@ -3395,12 +3404,11 @@ Duplicate headings receive stable suffixes.
 
     await plugin.definition.setup(harness.ctx);
     const staleWrite = harness.executeTool("wiki_write_page", {
-      companyId: COMPANY_ID,
       wikiId: "default",
       path: "wiki/concepts/plugin-boundaries.md",
       contents: "# New Title\n",
       expectedHash: "stale",
-    });
+    }, { companyId: COMPANY_ID });
     await expect(staleWrite).rejects.toThrow("Refusing to overwrite");
 
     const result = await harness.executeTool<{ data?: { hash: string } }>("wiki_write_page", {
@@ -3408,7 +3416,7 @@ Duplicate headings receive stable suffixes.
       wikiId: "default",
       path: "wiki/concepts/plugin-boundaries.md",
       contents: "# Plugin Boundaries\n\nSee [Knowledge](wiki/areas/knowledge.md).",
-    });
+    }, { companyId: COMPANY_ID });
 
     expect(result.data?.hash).toHaveLength(64);
     expect(files.get("wiki/concepts/plugin-boundaries.md")).toContain("Plugin Boundaries");
@@ -3417,7 +3425,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("blocks agent-tool writes to AGENTS.md but allows explicit board edits", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const files = new Map<string, string>([
       ["AGENTS.md", "# LLM Wiki Maintainer\n\nOriginal instructions.\n"],
     ]);
@@ -3438,7 +3446,7 @@ Duplicate headings receive stable suffixes.
       wikiId: "default",
       path: "AGENTS.md",
       contents: "# LLM Wiki Maintainer\n\nCompromised instructions.\n",
-    })).rejects.toThrow("Refusing to overwrite protected wiki control file AGENTS.md");
+    }, { companyId: COMPANY_ID })).rejects.toThrow("Refusing to overwrite protected wiki control file AGENTS.md");
 
     const result = await harness.performAction<{ hash: string }>("write-page", {
       companyId: COMPANY_ID,
@@ -3452,7 +3460,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("creates plugin-operation issues for LLM workflows", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     await plugin.definition.setup(harness.ctx);
 
@@ -3473,7 +3481,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("stamps resolved space context into hidden operation issues and operation metadata", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     const spaces = new Map<string, Record<string, unknown>>();
     const originalQuery = harness.ctx.db.query.bind(harness.ctx.db);
@@ -3528,7 +3536,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("uses selected existing agent and project bindings for new operations", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     const agent = existingAgent();
     const project = existingProject();
     harness.seed({ agents: [agent], projects: [project] });
@@ -3572,7 +3580,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("starts query sessions, records run ids, and forwards session events to plugin streams", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     let issuedRunId: string | undefined;
     const originalSendMessage = harness.ctx.agents.sessions.sendMessage.bind(harness.ctx.agents.sessions);
@@ -3640,7 +3648,7 @@ Duplicate headings receive stable suffixes.
   });
 
   it("files a streamed query answer as a page through a hidden file-as-page operation", async () => {
-    const harness = createTestHarness({ manifest });
+    const harness = createBoardHarness({ manifest });
     harness.seed({ agents: [wikiMaintainerAgent()] });
     const writes = captureWikiWrites(harness);
     await plugin.definition.setup(harness.ctx);
@@ -3663,5 +3671,82 @@ Duplicate headings receive stable suffixes.
     expect(harness.dbExecutes.some((execute) => execute.sql.includes("wiki_operations"))).toBe(true);
     expect(harness.dbExecutes.some((execute) => execute.sql.includes("wiki_page_revisions"))).toBe(true);
     expect(harness.dbExecutes.some((execute) => execute.sql.includes("filed_outputs"))).toBe(true);
+  });
+
+  it("refuses agent and system callers on every worker action", async () => {
+    const harness = createTestHarness({ manifest });
+    const actionKeys: string[] = [];
+    const register = harness.ctx.actions.register.bind(harness.ctx.actions);
+    harness.ctx.actions.register = (key, handler) => {
+      actionKeys.push(key);
+      register(key, handler);
+    };
+    await plugin.definition.setup(harness.ctx);
+
+    expect(actionKeys).toEqual(expect.arrayContaining(["bootstrap-root", "write-template", "write-page", "select-managed-agent"]));
+    for (const key of actionKeys) {
+      await expect(
+        harness.performAction(key, { companyId: COMPANY_ID, path: "/tmp/company-wiki" }, {
+          companyId: COMPANY_ID,
+          actor: { type: "agent", agentId: "agent-1", runId: "run-1" },
+        }),
+        `agent caller of ${key}`,
+      ).rejects.toThrow("can only be called by board users");
+      await expect(
+        harness.performAction(key, { companyId: COMPANY_ID, path: "/tmp/company-wiki" }, {
+          companyId: COMPANY_ID,
+          actor: { type: "system" },
+        }),
+        `system caller of ${key}`,
+      ).rejects.toThrow("can only be called by board users");
+    }
+    expect(harness.dbExecutes).toEqual([]);
+  });
+
+  it("refuses actions that target a company other than the authorized one", async () => {
+    const harness = createTestHarness({ manifest });
+    await plugin.definition.setup(harness.ctx);
+
+    await expect(
+      harness.performAction("write-template", {
+        companyId: OTHER_COMPANY_ID,
+        path: "AGENTS.md",
+        contents: "# Replaced\n",
+      }, {
+        actor: { type: "user", userId: "board-user-1", companyId: COMPANY_ID },
+      }),
+    ).rejects.toThrow("does not match the company authorized");
+    expect(harness.dbExecutes).toEqual([]);
+  });
+
+  it("takes the tool company from the run context instead of caller params", async () => {
+    const harness = createTestHarness({ manifest });
+    await plugin.definition.setup(harness.ctx);
+
+    await expect(
+      harness.executeTool("wiki_search", {
+        companyId: OTHER_COMPANY_ID,
+        wikiId: "default",
+        query: "secret",
+      }, { companyId: COMPANY_ID }),
+    ).rejects.toThrow("does not match the company of the calling run");
+    expect(harness.dbQueries).toEqual([]);
+    expect(harness.dbExecutes).toEqual([]);
+
+    const pages = await harness.executeTool<{ content?: string; data?: { companyId: string } }>("wiki_list_pages", {
+      wikiId: "default",
+    }, { companyId: COMPANY_ID });
+    expect(pages.data?.companyId).toBe(COMPANY_ID);
+    expect(harness.dbQueries.length).toBeGreaterThan(0);
+    for (const query of harness.dbQueries) {
+      expect(JSON.stringify(query.params ?? [])).not.toContain(OTHER_COMPANY_ID);
+    }
+  });
+
+  it("does not require companyId in the tool parameter schemas", () => {
+    for (const tool of manifest.tools ?? []) {
+      const schema = tool.parametersSchema as { required?: string[] };
+      expect(schema.required ?? [], tool.name).not.toContain("companyId");
+    }
   });
 });
